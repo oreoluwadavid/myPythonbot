@@ -77,9 +77,11 @@ def list_to_str_float_list(lis1:list)->list:
     """
     lis2=[]
     for items in lis1:
-        if type(items)==str:
+        if type(items)==str and items!=0 and items.endswith('4') is True:
             a=float(items.split('-')[2].split(' ')[4].split('N')[0])
             lis2.append(a)
+        elif type(items)==str:# and items==0:
+            lis2.append(items)
         elif type(items) ==int or type(items) == float:
             return lis1
         
@@ -1886,7 +1888,7 @@ class Portfolio(object):
                 return price  
         elif comm=="Sell":
             print("B")
-            self.api.requestsender(signal="Sell",amount=amount_of_shares[no])
+            self.api.requestsender(signal="Sell",amount=amount_of_shares)
             return price
 
             
