@@ -77,10 +77,10 @@ def list_to_str_float_list(lis1:list)->list:
     """
     lis2=[]
     for items in lis1:
-        if items is str:
+        if type(items)==str:
             a=float(items.split('-')[2].split(' ')[4].split('N')[0])
             lis2.append(a)
-        elif items is int or items is float:
+        elif type(items) ==int or type(items) == float:
             return lis1
         
     return lis2
