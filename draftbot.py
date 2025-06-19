@@ -955,13 +955,26 @@ class Rule(Indicator):
 class SimpleMovingAverage(Indicator):
     "Function to perform SMA"
     def __init__(self,windows):
-        self.windows=windows
-        #super(SimpleMovingAverage).__init__(windows)
+        if not isinstance(windows, int):
+            raise TypeError("SimpleMovingAverage 'windows' must be an integer.")
+        # Positive value check for 'windows' is handled by super().__init__
+        super().__init__(windows)
         
     def _input(self,_input_,min_periods=0,center=True):
         "Performs the SMA "
-        return _input_.rolling(window=self.windows,min_periods=1,center=True).mean()
+        # Calls Indicator._input for basic DataFrame/Series type and empty checks.
+        super()._input(_input_)
+
+        # SMA can operate on a Series or a DataFrame. No specific column check needed here
+        # as .rolling().mean() works on all numeric columns or a Series.
+        # Redundant empty check if super()._input() does it, but kept for safety.
+        if _input_.empty:
+             raise ValueError("Input for SimpleMovingAverage cannot be empty.")
+
+        actual_min_periods = min_periods if min_periods > 0 else 1 # Ensure min_periods is at least 1
+        return _input_.rolling(window=self.window,min_periods=actual_min_periods,center=center).mean()
     pass
+
 class MovingAverageRule(SimpleMovingAverage):
     def __init__(self,windows):
         self.windows=windows
@@ -1171,60 +1184,18 @@ class Memory(Indicator):
 class Momentum(Indicator):
     "Calculate momentum with substraction and normal method"
     def __init__(self,windows,Type:str='normal'):
-        if not isinstance(windows, int):
-            raise TypeError("Momentum 'windows' must be an integer.")
-        # Positive value check for 'windows' handled by super().__init__
-        if Type not in ('normal', 'subtract'):
-            raise ValueError("Momentum 'Type' must be 'normal' or 'subtract'.")
-
-        super().__init__(windows)
+        self.windows=windows
         self.Type=Type
-
+        #super(Momentum).__init__(windows)
     def _input(self,_input_):
         "Calculates the momentum depending on the type"
-        super()._input(_input_) # Basic DataFrame/Series type and empty check
-
-        input_series = None
-        if isinstance(_input_, pd.DataFrame):
-            if 'Close' in _input_.columns:
-                input_series = _input_['Close']
-            else:
-                raise KeyError("Momentum input DataFrame must contain 'Close' column.")
-        elif isinstance(_input_, pd.Series):
-            input_series = _input_
-        else: # Should be caught by super()
-            raise TypeError("Momentum input must be DataFrame or Series.")
-
         if self.Type=='subtract':
             "Uses the subtract method"
-            # Calculates price difference between current and N periods ago
-            moment_series = input_series - input_series.shift(self.window)
-            if isinstance(_input_, pd.DataFrame):
-                _input_['moment'] = moment_series
-                # Original code implies returning _input_['moment'], so this modification is part of that.
-                # However, the function later returns _input_["moment"] which assumes 'moment' was added to _input_ (if DataFrame).
-                # This path of the original code did not have a return statement.
-                # Let's ensure it returns the modified DataFrame if that's the pattern, or the series.
-                # For now, returning the modified DataFrame to align with other indicators.
-                # Or, more consistently, if it's to produce a value/series, it should return that.
-                # The original code returns _input_["moment"] at the end, which is confusing if _input_ is a Series.
-                # Let's make it so if _input_ is DataFrame, 'moment' column is added and DF is returned.
-                # If _input_ is Series, the moment series is returned.
-                # This is handled by the final return _input_["moment"] if _input_ is DF, or it should return moment_series if Series.
-                # The original code would implicitly return _input_["moment"] if _input_ was a DF.
-                # If _input_ was a Series, it would error out as it cannot do _input_['moment'].
-                # So, the original logic was flawed for Series input here.
-                # Corrected: if _input_ is DataFrame, add column. If Series, this path should return the series.
-                # The final `return _input_["moment"]` makes this path problematic for Series.
-                # Let's assume `_input_` is primarily a DataFrame for this indicator modifying it.
-                # If it must return the series itself: return moment_series
-            else: # _input_ is a Series
-                 return input_series - input_series.shift(self.window) # Return the moment Series directly
-            # pass is redundant
-        elif self.Type=='normal':
-            "Uses the normal method (log returns trend)"
-            # This path calculates a single 'trend' value, not a series.
-            returns=np.log(input_series)
+            _input_['moment']=_input_['Close']
+            pass
+        else:
+            "Uses the normal method"
+            returns=np.log(_input_["Close"])
             x=np.arange(len(returns))
             slope,_,rvalue,_,_=linregress(x,returns)
             annualized=(1+slope)**252
